@@ -1,4 +1,201 @@
-<!doctype html>
+const paintColors = {
+  blue: '#2b8bd2',
+  yellow: '#ffd23f',
+  green: '#35b779',
+  red: '#ff5e5b',
+  purple: '#9b73df',
+  coral: '#ff8c6d',
+  teal: '#4bc5bf',
+  sand: '#f2d39a',
+  seaweed: '#4ca56b'
+};
+
+let paintRound = 1;
+let paintStep = 0;
+let paintSelected = null;
+let paintTasks = [];
+let paintZoneState = {};
+
+function paintSceneSVG() {
+  return `
+    <svg class="paint-svg" viewBox="0 0 760 520" aria-label="Ocean coloring scene">
+      <defs>
+        <linearGradient id="waterGlow" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#dffbff"/>
+          <stop offset="100%" stop-color="#8ad5ee"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="760" height="520" fill="url(#waterGlow)" opacity="0.7"></rect>
+
+      <g class="paint-zone" data-zone="bubble-1" fill="#dff8ff" opacity="0.9">
+        <circle cx="90" cy="90" r="14"></circle>
+      </g>
+      <g class="paint-zone" data-zone="bubble-2" fill="#dff8ff" opacity="0.9">
+        <circle cx="160" cy="150" r="18"></circle>
+      </g>
+      <g class="paint-zone" data-zone="bubble-3" fill="#dff8ff" opacity="0.9">
+        <circle cx="620" cy="120" r="16"></circle>
+      </g>
+      <g class="paint-zone" data-zone="bubble-4" fill="#dff8ff" opacity="0.9">
+        <circle cx="680" cy="170" r="12"></circle>
+      </g>
+
+      <g class="paint-zone" data-zone="sand" fill="#f2d39a" stroke="#d7b779">
+        <path d="M0 420 C120 390, 220 415, 300 405 C430 390, 530 440, 760 390 L760 520 L0 520 Z"></path>
+      </g>
+
+      <g class="paint-zone" data-zone="coral" fill="#ff8c6d" stroke="#d96a4a">
+        <path d="M520 400 C548 330, 566 320, 590 340 C610 360, 616 396, 580 420 Z"></path>
+        <path d="M610 400 C635 330, 655 330, 675 350 C700 372, 690 408, 650 420 Z"></path>
+      </g>
+
+      <g class="paint-zone" data-zone="seaweed-1" fill="#4ca56b" stroke="#2c7d4a">
+        <path d="M170 420 C150 360, 160 320, 180 270 C195 320, 208 360, 204 420 Z"></path>
+      </g>
+      <g class="paint-zone" data-zone="seaweed-2" fill="#4ca56b" stroke="#2c7d4a">
+        <path d="M220 420 C205 350, 222 300, 244 250 C260 300, 270 360, 262 420 Z"></path>
+      </g>
+      <g class="paint-zone" data-zone="seaweed-3" fill="#4ca56b" stroke="#2c7d4a">
+        <path d="M280 420 C268 350, 282 305, 302 260 C318 315, 328 360, 325 420 Z"></path>
+      </g>
+
+      <g class="paint-zone" data-zone="shark" fill="#2d89d8" stroke="#1a4f7f">
+        <path d="M180 190
+                 C240 150, 332 138, 450 164
+                 C515 180, 560 220, 590 260
+                 C630 297, 623 326, 586 342
+                 C553 357, 511 363, 478 348
+                 C454 338, 424 337, 404 351
+                 C365 382, 320 392, 267 376
+                 C220 362, 175 333, 149 298
+                 C115 256, 120 212, 180 190 Z"></path>
+      </g>
+
+      <g class="paint-zone" data-zone="shark-fin" fill="#2d89d8" stroke="#1a4f7f">
+        <path d="M358 136 L428 86 L462 156 Z"></path>
+      </g>
+
+      <g class="paint-zone" data-zone="shark-eye" fill="#fff" stroke="#1a4f7f">
+        <circle cx="495" cy="245" r="12"></circle>
+      </g>
+
+      <g class="paint-zone" data-zone="shark-eye-pupil" fill="#1a4f7f">
+        <circle cx="497" cy="246" r="5"></circle>
+      </g>
+
+      <g class="paint-zone" data-zone="shark-mouth" fill="#ff7d68" stroke="#bf4d3d">
+        <path d="M435 296 C468 322, 492 319, 520 296 L512 339 C482 348, 456 349, 432 331 Z"></path>
+      </g>
+
+      <g class="paint-zone" data-zone="coral-2" fill="#ff8c6d" stroke="#d96a4a">
+        <path d="M570 420 C592 375, 603 360, 620 365 C638 371, 640 402, 622 432 Z"></path>
+      </g>
+    </svg>
+  `;
+}
+
+function paintTaskList() {
+  return [
+    { region: 'shark', color: 'blue' },
+    { region: 'coral', color: 'coral' },
+    { region: 'seaweed-1', color: 'seaweed' },
+    { region: 'seaweed-2', color: 'seaweed' },
+    { region: 'seaweed-3', color: 'seaweed' },
+    { region: 'sand', color: 'sand' }
+  ];
+}
+
+function renderPaintScene() {
+  const list = paintTasks.map(task => {
+    const zone = document.querySelector(`.paint-zone[data-zone="${task.region}"]`);
+    if (zone) {
+      zone.setAttribute('fill', paintColors[task.color]);
+      zone.classList.add('filled');
+    }
+    return '';
+  });
+  return list.join('');
+}
+
+function renderPaint() {
+  paintStep = 0;
+  paintSelected = null;
+  paintZoneState = {};
+  paintTasks = paintTaskList();
+
+  header('Paint the Shark Scene', 'Choose a color, then paint the ocean picture.', false);
+
+  $('play').innerHTML = `
+    <div class="paint-scene-wrap">
+      <div class="paint-scene">
+        ${paintSceneSVG()}
+      </div>
+      <div class="paint-palette">
+        ${Object.entries(paintColors).map(([name, color]) => `
+          <button class="paint-swatch" data-color="${name}" style="background:${color}" aria-label="${name} paint"></button>
+        `).join('')}
+      </div>
+      ${foot()}
+    </div>
+  `;
+
+  document.querySelectorAll('.paint-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const color = btn.dataset.color;
+      paintSelected = color;
+      document.querySelectorAll('.paint-swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === color));
+      $('instruction').textContent = `Paint the ${paintTasks[paintStep].region.replace('-', ' ')} with ${color}.`;
+      speak(`Paint the ${paintTasks[paintStep].region.replace('-', ' ')} with ${color}.`);
+    });
+  });
+
+  document.querySelectorAll('.paint-zone').forEach(zone => {
+    zone.addEventListener('click', () => {
+      const target = zone.dataset.zone;
+      const task = paintTasks[paintStep];
+      if (!task) return;
+
+      if (!paintSelected) {
+        $('feedback').textContent = `Pick a color first.`;
+        speak('Pick a color first.');
+        return;
+      }
+
+      if (target !== task.region) {
+        zone.classList.add('shake');
+        setTimeout(() => zone.classList.remove('shake'), 280);
+        $('feedback').textContent = `Paint the ${task.region.replace('-', ' ')}.`;
+        speak(`Try again. Paint the ${task.region.replace('-', ' ')}.`);
+        return;
+      }
+
+      if (paintSelected !== task.color) {
+        $('feedback').textContent = `Use ${task.color}.`;
+        speak(`Use ${task.color}.`);
+        return;
+      }
+
+      zone.setAttribute('fill', paintColors[task.color]);
+      zone.classList.add('filled', 'pop');
+      paintZoneState[target] = task.color;
+      paintStep++;
+
+      if (paintStep >= paintTasks.length) {
+        finish('Beautiful ocean art! The shark scene is finished.');
+        return;
+      }
+
+      const next = paintTasks[paintStep];
+      $('instruction').textContent = `Paint the ${next.region.replace('-', ' ')} with ${next.color}.`;
+      $('feedback').textContent = 'Nice work!';
+      speak(`Paint the ${next.region.replace('-', ' ')} with ${next.color}.`);
+    });
+  });
+
+  bindFoot(renderPaint);
+  $('next').textContent = 'Next picture';
+}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
